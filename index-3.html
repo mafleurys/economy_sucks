@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Is it cheap right now?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F5F2; --ink:#1B2A41; --ink-soft:#5a6473; --line:#dcded8;
+    --cheap:#2A6F77; --pricey:#B5662A; --avg:#9aa3b0;
+    --verdict:var(--ink); --card:#fbfbf9;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:"Inter",system-ui,sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased;
+    padding:clamp(20px,5vw,64px) clamp(16px,5vw,48px) 80px;}
+  .wrap{max-width:760px;margin:0 auto}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;}
+  h1{font-family:"Newsreader",serif;font-weight:400;font-size:clamp(30px,6vw,46px);
+    line-height:1.08;letter-spacing:-.01em;margin:0 0 10px;}
+  .sub{color:var(--ink-soft);font-size:15px;max-width:52ch;margin:0 0 22px}
+  .sub a{color:var(--cheap);text-decoration:none;border-bottom:1px solid currentColor}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;border:1px solid var(--line);background:var(--card);
+    border-radius:999px;padding:5px;margin:0 0 26px;width:fit-content;}
+  .tab{font-family:"IBM Plex Mono",monospace;font-size:13px;padding:8px 18px;border:0;
+    background:transparent;color:var(--ink-soft);border-radius:999px;cursor:pointer;transition:.15s;}
+  .tab[aria-selected="true"]{background:var(--ink);color:#fff}
+  .tab:focus-visible{outline:2px solid var(--cheap);outline-offset:2px}
+
+  .verdict-card{border:1px solid var(--line);background:var(--card);border-radius:14px;
+    padding:26px clamp(20px,4vw,32px);margin-bottom:18px;border-top:3px solid var(--verdict);}
+  .verdict-word{font-family:"Newsreader",serif;font-style:italic;font-size:clamp(30px,7vw,44px);
+    line-height:1;color:var(--verdict);margin:0 0 6px;}
+  .verdict-rate{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--ink-soft);margin:0 0 18px;}
+  .verdict-rate b{color:var(--ink);font-weight:600}
+  .verdict-rec{font-size:15px;margin:0;max-width:54ch}
+
+  .range{margin:22px 0 4px}
+  .range-track{position:relative;height:6px;border-radius:3px;
+    background:linear-gradient(90deg,var(--cheap),var(--avg) 50%,var(--pricey));opacity:.85;}
+  .range-tick{position:absolute;top:50%;transform:translate(-50%,-50%)}
+  .range-tick .dot{width:13px;height:13px;border-radius:50%;background:var(--verdict);
+    border:2.5px solid var(--card);box-shadow:0 0 0 1px var(--verdict);}
+  .range-tick.avg .dot{width:9px;height:9px;background:var(--avg);box-shadow:0 0 0 1px var(--avg)}
+  .range-labels{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:11px;color:var(--ink-soft);margin-top:12px;}
+  .range-caption{font-size:13px;color:var(--ink-soft);margin:14px 0 0}
+
+  .windows{display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 16px}
+  .win-btn{font-family:"IBM Plex Mono",monospace;font-size:12px;padding:7px 14px;
+    border:1px solid var(--line);background:transparent;border-radius:999px;
+    color:var(--ink-soft);cursor:pointer;transition:.15s;}
+  .win-btn:hover{border-color:var(--ink-soft)}
+  .win-btn[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .win-btn:focus-visible{outline:2px solid var(--cheap);outline-offset:2px}
+
+  .chart-card{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:20px 18px 14px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .axis-lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--ink-soft)}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:18px 0 0;}
+  .stat{background:var(--card);padding:14px 16px}
+  .stat .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 4px}
+  .stat .v{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500}
+  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+  .tool{border:1px solid var(--line);background:var(--card);border-radius:14px;
+    padding:20px clamp(18px,4vw,26px);margin-top:18px}
+  .tool h3{font-family:"Newsreader",serif;font-weight:500;font-size:20px;margin:0 0 4px}
+  .tool p.hint{color:var(--ink-soft);font-size:13px;margin:0 0 14px}
+  .field{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .field label{font-size:13px;color:var(--ink-soft);min-width:64px}
+  input[type=text]{font-family:"IBM Plex Mono",monospace;font-size:15px;padding:9px 12px;
+    border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);width:190px;}
+  input:focus-visible{outline:2px solid var(--cheap);outline-offset:1px;border-color:var(--cheap)}
+  .btn{font-family:"IBM Plex Mono",monospace;font-size:13px;padding:9px 16px;border:1px solid var(--ink);
+    background:var(--ink);color:#fff;border-radius:8px;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--ink)}
+  .out{font-family:"IBM Plex Mono",monospace;font-size:14px;margin:14px 0 0;line-height:1.7}
+  .out .big{font-size:18px;font-weight:600}
+  .yes{color:var(--cheap)} .no{color:var(--pricey)}
+
+  details.note{margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
+  details.note summary{cursor:pointer;font-family:"Newsreader",serif;font-style:italic;font-size:18px;color:var(--ink)}
+  details.note p{font-size:14px;color:var(--ink-soft);max-width:60ch}
+
+  footer{margin-top:34px;font-size:12px;color:var(--ink-soft);font-family:"IBM Plex Mono",monospace}
+  footer a{color:var(--ink-soft)}
+
+  #status{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-soft);padding:40px 0}
+  #status code{background:#e9eae5;padding:1px 5px;border-radius:4px}
+  #status .btn{margin-left:6px}
+  .hidden{display:none}
+
+  /* key panel */
+  .keypanel{border:1px dashed var(--line);background:var(--card);border-radius:14px;padding:24px clamp(20px,4vw,30px)}
+  .keypanel h3{font-family:"Newsreader",serif;font-weight:500;font-size:21px;margin:0 0 8px}
+  .keypanel ol{font-size:14px;color:var(--ink-soft);padding-left:20px;margin:0 0 18px}
+  .keypanel ol a{color:var(--cheap)}
+  .ticker-row{margin-top:16px}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow" id="eyebrow">Daily price check</p>
+  <h1>Is it cheap right now?</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" data-tab="currency" aria-selected="true">€ → IDR</button>
+    <button class="tab" role="tab" data-tab="gold" aria-selected="false">Gold</button>
+    <button class="tab" role="tab" data-tab="stock" aria-selected="false">Stocks</button>
+  </div>
+
+  <div class="windows hidden" id="goldCcy" role="group" aria-label="Display currency" style="margin:0 0 22px">
+    <button class="win-btn" data-c="USD" aria-pressed="true">USD</button>
+    <button class="win-btn" data-c="EUR" aria-pressed="false">EUR</button>
+    <button class="win-btn" data-c="IDR" aria-pressed="false">IDR</button>
+  </div>
+
+  <div id="status">Loading…</div>
+
+  <!-- key panel for stocks -->
+  <div id="keypanel" class="keypanel hidden">
+    <h3>Stocks need a free API key</h3>
+    <ol>
+      <li>Grab a free key at <a href="https://twelvedata.com/register" target="_blank" rel="noopener">twelvedata.com</a> (30 seconds, no card).</li>
+      <li>Paste it below. It stays in your browser for this session only — it is never sent anywhere except to fetch prices.</li>
+    </ol>
+    <div class="field">
+      <label for="apikey">API key</label>
+      <input type="text" id="apikey" placeholder="paste key here">
+      <button class="btn" id="keyGo">Use key</button>
+    </div>
+    <div class="field ticker-row">
+      <label for="ticker">Ticker</label>
+      <input type="text" id="ticker" value="AAPL" placeholder="e.g. AAPL, MSFT, NVDA">
+    </div>
+  </div>
+
+  <!-- shared view -->
+  <main id="app" class="hidden">
+    <section class="verdict-card" id="verdictCard">
+      <p class="verdict-word" id="verdictWord">—</p>
+      <p class="verdict-rate" id="rateLine"></p>
+      <p class="verdict-rec" id="verdictRec"></p>
+      <div class="range">
+        <div class="range-track">
+          <div class="range-tick avg" id="tickAvg"><div class="dot"></div></div>
+          <div class="range-tick" id="tickToday"><div class="dot"></div></div>
+        </div>
+        <div class="range-labels"><span id="lblLow">low</span><span id="lblHigh">high</span></div>
+        <p class="range-caption" id="rangeCaption"></p>
+      </div>
+    </section>
+
+    <div class="windows" role="group" aria-label="Comparison window">
+      <button class="win-btn" data-w="90">3 months</button>
+      <button class="win-btn" data-w="180">6 months</button>
+      <button class="win-btn" data-w="365" aria-pressed="true">1 year</button>
+      <button class="win-btn" data-w="730">2 years</button>
+    </div>
+
+    <div class="chart-card">
+      <svg id="chart" viewBox="0 0 700 280" preserveAspectRatio="none" role="img" aria-label="Price over the selected window"></svg>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><p class="k">Cheaper than</p><p class="v" id="sPct">—</p></div>
+      <div class="stat"><p class="k">Window low</p><p class="v" id="sLow">—</p></div>
+      <div class="stat"><p class="k">Window avg</p><p class="v" id="sAvg">—</p></div>
+      <div class="stat"><p class="k">30-day trend</p><p class="v" id="sTrend">—</p></div>
+    </div>
+
+    <div class="tool" id="convTool">
+      <h3 id="convTitle"></h3>
+      <p class="hint" id="convHint"></p>
+      <div class="field"><label id="convLabel" for="amt"></label><input type="text" id="amt" inputmode="decimal"></div>
+      <p class="out" id="convOut"></p>
+    </div>
+
+    <div class="tool">
+      <h3>Tell me when it hits my target</h3>
+      <p class="hint" id="tgtHint"></p>
+      <div class="field"><label id="tgtLabel" for="tgt"></label><input type="text" id="tgt" inputmode="decimal"></div>
+      <p class="out" id="alertOut"></p>
+    </div>
+
+    <details class="note"><summary id="noteSummary"></summary><div id="noteBody"></div></details>
+
+    <footer id="footer"></footer>
+  </main>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+const iso = d => d.toISOString().slice(0,10);
+const parseNum = s => Number(String(s).replace(/[^\d.]/g,"")) || 0;
+const fmtIDR = n => Math.round(n).toLocaleString("en-US");
+const fmtUSD = n => "$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtEUR = n => "€"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const GRAMS_PER_OZ = 31.1035;
+
+/* ---------- data fetchers (return [{date:Date, rate:Number}] ascending) ---------- */
+async function fetchCurrency(){
+  const end=new Date(), start=new Date(end-365.25*2*864e5), range=`${iso(start)}..${iso(end)}`;
+  const urls=[
+    `https://api.frankfurter.dev/v1/${range}?base=EUR&symbols=IDR`,
+    `https://api.frankfurter.app/${range}?from=EUR&to=IDR`];
+  let err;
+  for(const u of urls){ try{
+    const r=await fetch(u); if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    const rows=Object.entries(j.rates).map(([d,v])=>({date:new Date(d),rate:v.IDR}))
+      .filter(p=>p.rate!=null).sort((a,b)=>a.date-b.date);
+    if(rows.length) return rows; throw new Error("no data");
+  }catch(e){err=e;} }
+  throw err;
+}
+async function fetchGold(){
+  const end=new Date(), start=new Date(end-365.25*2.2*864e5), range=`${iso(start)}..${iso(end)}`;
+  // gold spot, USD per oz
+  const r=await fetch("https://freegoldapi.com/data/latest.json");
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  const j=await r.json();
+  const cut=new Date(Date.now()-365.25*2.2*864e5);
+  GOLD_RAW=j.map(d=>({date:new Date(d.date),usd:+d.price}))
+    .filter(p=>p.usd>0 && p.date>=cut).sort((a,b)=>a.date-b.date);
+  if(!GOLD_RAW.length) throw new Error("no recent gold data");
+  // FX: EUR->USD and EUR->IDR over the same span (for currency conversion)
+  const fxUrls=[
+    `https://api.frankfurter.dev/v1/${range}?base=EUR&symbols=USD,IDR`,
+    `https://api.frankfurter.app/${range}?from=EUR&to=USD,IDR`];
+  let fx,err;
+  for(const u of fxUrls){ try{
+    const fr=await fetch(u); if(!fr.ok) throw new Error("HTTP "+fr.status);
+    const fj=await fr.json();
+    fx=Object.entries(fj.rates).map(([d,v])=>({date:new Date(d),usd:v.USD,idr:v.IDR}))
+      .filter(p=>p.usd&&p.idr).sort((a,b)=>a.date-b.date);
+    if(fx.length) break; throw new Error("no fx");
+  }catch(e){err=e;} }
+  if(!fx||!fx.length) throw err||new Error("could not load exchange rates");
+  GOLD_FX=fx;
+  return convertGold(GOLD_CCY);
+}
+// convert the stored USD gold series into the chosen currency, day by day
+function convertGold(ccy){
+  let i=0;
+  return GOLD_RAW.map(p=>{
+    while(i<GOLD_FX.length-1 && GOLD_FX[i+1].date<=p.date) i++;
+    const f=GOLD_FX[i];
+    let rate = ccy==="EUR" ? p.usd/f.usd : ccy==="IDR" ? p.usd*(f.idr/f.usd) : p.usd;
+    return {date:p.date, rate};
+  });
+}
+function goldFmt(){ return GOLD_CCY==="EUR"?fmtEUR:GOLD_CCY==="IDR"?fmtIDR:fmtUSD; }
+async function fetchStock(){
+  const sym=(document.getElementById("ticker").value||"AAPL").trim().toUpperCase();
+  const u=`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(sym)}`+
+          `&interval=1day&outputsize=520&order=ASC&apikey=${encodeURIComponent(STOCK_KEY)}`;
+  const r=await fetch(u); const j=await r.json();
+  if(j.status==="error"||!j.values) throw new Error(j.message||"could not load "+sym);
+  const rows=j.values.map(v=>({date:new Date(v.datetime),rate:+v.close}))
+    .filter(p=>p.rate>0).sort((a,b)=>a.date-b.date);
+  if(!rows.length) throw new Error("no data for "+sym);
+  STOCK_SYM=sym; return rows;
+}
+
+/* ---------- per-tab config ---------- */
+let STOCK_KEY="", STOCK_SYM="AAPL";
+let GOLD_CCY="USD", GOLD_RAW=null, GOLD_FX=null;
+const TABS={
+  currency:{
+    eyebrow:"IDR → EUR · daily ECB reference rates",
+    sub:`Whether <em>today</em> is a good day to turn rupiah into euros, vs the recent past. Rate is <b>IDR per €1</b> — lower means euros are cheaper. Source: <a href="https://frankfurter.dev" target="_blank" rel="noopener">frankfurter.dev</a>.`,
+    fetch:fetchCurrency, fmt:fmtIDR, unitLabel:"IDR per €1",
+    rateLine:a=>`Today: <b>${fmtIDR(a.cur)}</b> IDR per €1`,
+    conv:{title:"How much would I get?",hint:"Enter an amount of rupiah.",label:"Rupiah",val:"23,000,000",
+      run:a=>{const idr=parseNum($("amt").value);if(!idr)return"";
+        return `<span class="big">${fmtEUR(idr/a.cur)}</span> at today's rate.<br>At this window's best rate (${fmtIDR(a.lo)}) you'd get ${fmtEUR(idr/a.lo)} — ${fmtEUR(idr/a.lo-idr/a.cur)} more.`;}},
+    tgt:{hint:"The rate you'd be happy to buy at (IDR per €1).",label:"Target",val:"19,800",fmt:fmtIDR},
+    noteSummary:"A note on “buy now” when it looks pricey",
+    noteBody:`<p>This compares today only to recent history, so near a high it says <em>pricey</em> — right for <b>timing</b>. But if your costs are in euros, waiting leaves you exposed to the rupiah weakening. Converting <b>what you actually need</b> now isn't market-timing — it's matching money to spending. Time only the portion you don't need yet. Not financial advice.</p>`,
+    footer:'Rates: ECB daily reference via frankfurter.dev · math runs in your browser, nothing is stored.'
+  },
+  gold:{
+    eyebrow:()=>`Gold · XAU · daily spot, per troy oz (${GOLD_CCY})`,
+    sub:()=>`Whether gold is cheap <em>today</em> vs the recent past, priced in <b>${GOLD_CCY} per troy ounce</b> — lower means cheaper to buy. Switch currency above. Source: <a href="https://freegoldapi.com" target="_blank" rel="noopener">freegoldapi.com</a> + <a href="https://frankfurter.dev" target="_blank" rel="noopener">frankfurter.dev</a> FX.`,
+    fetch:fetchGold, fmt:n=>goldFmt()(n), unitLabel:()=>GOLD_CCY+"/oz",
+    rateLine:a=>{const f=goldFmt();return `Today: <b>${f(a.cur)}</b> per oz · ${f(a.cur/GRAMS_PER_OZ)}/gram`;},
+    conv:{title:"What would some gold cost?",hint:"Enter grams of gold.",label:"Grams",val:"10",
+      run:a=>{const g=parseNum($("amt").value);if(!g)return"";const f=goldFmt(),pg=a.cur/GRAMS_PER_OZ,pgLo=a.lo/GRAMS_PER_OZ;
+        return `<span class="big">${f(g*pg)}</span> at today's price.<br>At this window's low (${f(a.lo)}/oz) it'd be ${f(g*pgLo)} — ${f(g*pg-g*pgLo)} less.`;}},
+    tgt:{hint:()=>`A price you'd be happy to buy at (${GOLD_CCY} per oz).`,label:"Target",val:"",fmt:n=>goldFmt()(n)},
+    noteSummary:"A note on timing gold",
+    noteBody:`<p>“Cheaper than the past year” is backward-looking — it says nothing about tomorrow. Priced in EUR or IDR, the verdict reflects both gold <em>and</em> the exchange rate moving, which is what you'd actually pay. Gold is hard to time; if you're accumulating, buying a fixed amount on a schedule usually beats waiting for a bottom. Only commit money you won't need soon. Not financial advice.</p>`,
+    footer:()=>`Gold: daily spot (Yahoo GC=F) via freegoldapi.com, converted to ${GOLD_CCY} with frankfurter.dev FX · math runs in your browser.`
+  },
+  stock:{
+    eyebrow:"Stocks · daily close, USD",
+    sub:`Whether a stock is cheap <em>today</em> vs its recent range, by <b>daily closing price (USD)</b> — lower means cheaper to buy. Needs a free <a href="https://twelvedata.com" target="_blank" rel="noopener">Twelve Data</a> key.`,
+    fetch:fetchStock, fmt:fmtUSD, unitLabel:"USD",
+    rateLine:a=>`${STOCK_SYM} today: <b>${fmtUSD(a.cur)}</b>`,
+    conv:{title:"What would some shares be worth?",hint:"Enter a number of shares.",label:"Shares",val:"10",
+      run:a=>{const n=parseNum($("amt").value);if(!n)return"";
+        return `<span class="big">${fmtUSD(n*a.cur)}</span> at today's close.<br>At this window's low (${fmtUSD(a.lo)}) that's ${fmtUSD(n*a.lo)}.`;}},
+    tgt:{hint:"A price you'd be happy to buy at (USD).",label:"Target",val:"",fmt:fmtUSD},
+    noteSummary:"A note on timing single stocks",
+    noteBody:`<p>A low price vs the past year is <em>not</em> a buy signal on its own — a stock can be cheap because the business is deteriorating. This tool only shows where the price sits in its recent range, not whether it's good value. Single stocks are risky and hard to time; many people prefer broad, regular investing. Definitely not financial advice — do your own research.</p>`,
+    footer:'Prices: daily close via Twelve Data (your key) · math runs in your browser, key not stored.'
+  }
+};
+
+/* ---------- shared engine ---------- */
+let CURRENT="currency", windowDays=365;
+const CACHE={};
+const $=id=>document.getElementById(id);
+const amt=()=>$("amt");
+
+function analyse(series,days){
+  const last=series[series.length-1];
+  const cutoff=new Date(last.date.getTime()-days*864e5);
+  const sub=series.filter(d=>d.date>=cutoff);
+  const cur=last.rate, rates=sub.map(d=>d.rate);
+  const lo=Math.min(...rates), hi=Math.max(...rates);
+  const avg=rates.reduce((a,b)=>a+b,0)/rates.length;
+  const cheaperThan=sub.filter(d=>d.rate>=cur).length/sub.length*100;
+  const tCut=new Date(last.date.getTime()-30*864e5);
+  const recent=sub.filter(d=>d.date>=tCut);
+  const trend=recent.length?(cur-recent[0].rate)/recent[0].rate*100:0;
+  let word,rec,tone;
+  if(cheaperThan>=70){word="cheap";tone="cheap";rec="Near the low end of this window — a relatively good moment to buy.";}
+  else if(cheaperThan>=55){word="slightly cheap";tone="cheap";rec="A little better than the typical day in this window.";}
+  else if(cheaperThan>=45){word="average";tone="avg";rec="About the usual price — no urgency either way.";}
+  else if(cheaperThan>=30){word="slightly pricey";tone="pricey";rec="A touch above the typical day in this window.";}
+  else{word="pricey";tone="pricey";rec="Near the high end — expensive vs recent history.";}
+  return {cur,lo,hi,avg,cheaperThan,trend,word,rec,tone,sub,days};
+}
+
+const WLBL={90:"3 months",180:"6 months",365:"year",730:"2 years"};
+
+function render(){
+  const cfg=TABS[CURRENT], series=CACHE[CURRENT];
+  const a=analyse(series,windowDays);
+  const lbl=WLBL[a.days]||a.days+" days";
+  document.documentElement.style.setProperty("--verdict",
+    a.tone==="cheap"?"var(--cheap)":a.tone==="pricey"?"var(--pricey)":"var(--ink)");
+
+  $("verdictWord").textContent=a.word;
+  $("rateLine").innerHTML=cfg.rateLine(a);
+  $("verdictRec").textContent=a.rec;
+
+  const pos=(a.cur-a.lo)/(a.hi-a.lo)*100, posAvg=(a.avg-a.lo)/(a.hi-a.lo)*100;
+  $("tickToday").style.left=Math.max(0,Math.min(100,pos))+"%";
+  $("tickAvg").style.left=Math.max(0,Math.min(100,posAvg))+"%";
+  $("lblLow").textContent="low "+cfg.fmt(a.lo);
+  $("lblHigh").textContent=cfg.fmt(a.hi)+" high";
+  $("rangeCaption").textContent=`Today is cheaper than ${a.cheaperThan.toFixed(0)}% of the past ${lbl}.`;
+
+  $("sPct").textContent=a.cheaperThan.toFixed(0)+"%";
+  $("sLow").textContent=cfg.fmt(a.lo);
+  $("sAvg").textContent=cfg.fmt(a.avg);
+  const tr=$("sTrend"); tr.textContent=(a.trend>=0?"+":"")+a.trend.toFixed(1)+"%";
+  tr.style.color=a.trend>=0?"var(--pricey)":"var(--cheap)";
+
+  drawChart(a);
+  $("convOut").innerHTML=cfg.conv.run(a);
+  updateAlert();
+}
+
+function drawChart(a){
+  const W=700,H=280,pad={l:8,r:8,t:14,b:22},pts=a.sub;
+  const xs=pts.map(p=>p.date.getTime()),x0=Math.min(...xs),x1=Math.max(...xs);
+  const y0=Math.min(...pts.map(p=>p.rate)),y1=Math.max(...pts.map(p=>p.rate));
+  const px=t=>pad.l+(t-x0)/(x1-x0||1)*(W-pad.l-pad.r);
+  const py=v=>pad.t+(1-(v-y0)/(y1-y0||1))*(H-pad.t-pad.b);
+  const col=a.tone==="cheap"?"var(--cheap)":a.tone==="pricey"?"var(--pricey)":"var(--ink)";
+  const cfg=TABS[CURRENT];
+  const line=pts.map((p,i)=>(i?"L":"M")+px(p.date.getTime()).toFixed(1)+" "+py(p.rate).toFixed(1)).join(" ");
+  const area=`M${px(x0).toFixed(1)} ${py(y0).toFixed(1)} `+
+    pts.map(p=>"L"+px(p.date.getTime()).toFixed(1)+" "+py(p.rate).toFixed(1)).join(" ")+
+    ` L${px(x1).toFixed(1)} ${py(y0).toFixed(1)} Z`;
+  const last=pts[pts.length-1],avgY=py(a.avg);
+  const ticks=[pts[0],pts[Math.floor(pts.length/2)],last].map(p=>{
+    const m=p.date.toLocaleDateString("en-GB",{month:"short",year:"2-digit"});
+    return `<text class="axis-lbl" x="${px(p.date.getTime()).toFixed(1)}" y="${H-6}" text-anchor="middle">${m}</text>`;}).join("");
+  $("chart").innerHTML=`
+    <path d="${area}" fill="${col}" opacity="0.10"></path>
+    <line x1="${pad.l}" x2="${W-pad.r}" y1="${avgY.toFixed(1)}" y2="${avgY.toFixed(1)}" stroke="var(--avg)" stroke-width="1" stroke-dasharray="4 4"></line>
+    <text class="axis-lbl" x="${W-pad.r}" y="${(avgY-5).toFixed(1)}" text-anchor="end">avg ${cfg.fmt(a.avg)}</text>
+    <path d="${line}" fill="none" stroke="${col}" stroke-width="1.8"></path>
+    <circle cx="${px(last.date.getTime()).toFixed(1)}" cy="${py(last.rate).toFixed(1)}" r="4.5" fill="${col}" stroke="var(--card)" stroke-width="2"></circle>
+    ${ticks}`;
+}
+
+function updateAlert(){
+  const cfg=TABS[CURRENT], tgt=parseNum($("tgt").value), cur=CACHE[CURRENT][CACHE[CURRENT].length-1].rate;
+  const el=$("alertOut");
+  if(!tgt){el.innerHTML="";return;}
+  if(cur<=tgt) el.innerHTML=`<span class="yes big">Yes.</span> ${cfg.fmt(cur)} is at or below your target ${cfg.fmt(tgt)}.`;
+  else{const gap=(cur-tgt)/tgt*100;
+    el.innerHTML=`<span class="no big">Not yet.</span> ${cfg.fmt(cur)} is ${gap.toFixed(1)}% above your target ${cfg.fmt(tgt)}.`;}
+}
+
+/* ---------- tab loading ---------- */
+function applyCopy(resetInputs=true){
+  const cfg=TABS[CURRENT], v=x=>typeof x==="function"?x():x;
+  $("eyebrow").textContent=v(cfg.eyebrow);
+  $("sub").innerHTML=v(cfg.sub);
+  $("convTitle").textContent=v(cfg.conv.title);
+  $("convHint").textContent=v(cfg.conv.hint);
+  $("convLabel").textContent=v(cfg.conv.label);
+  $("tgtHint").textContent=v(cfg.tgt.hint);
+  $("tgtLabel").textContent=v(cfg.tgt.label);
+  $("noteSummary").textContent=v(cfg.noteSummary);
+  $("noteBody").innerHTML=v(cfg.noteBody);
+  $("footer").innerHTML=v(cfg.footer);
+  if(resetInputs){ amt().value=v(cfg.conv.val); $("tgt").value=v(cfg.tgt.val); }
+}
+
+function show(el){["status","keypanel","app"].forEach(id=>$(id).classList.toggle("hidden",id!==el));}
+
+async function loadTab(){
+  const cfg=TABS[CURRENT];
+  applyCopy();
+  $("goldCcy").classList.toggle("hidden", CURRENT!=="gold");
+  if(CURRENT==="stock" && !STOCK_KEY){ show("keypanel"); return; }
+  if(CACHE[CURRENT]){ show("app"); render(); return; }
+  show("status"); $("status").textContent="Loading…";
+  try{
+    CACHE[CURRENT]=await cfg.fetch();
+    show("app"); render();
+  }catch(e){
+    show("status");
+    const extra = CURRENT==="stock"
+      ? `<br><small>Check the ticker and key. Free Twelve Data keys cover US stocks, forex and crypto.</small>`
+      : `<br><small>If the address bar starts with <code>file://</code>, serve it over http instead.</small>`;
+    $("status").innerHTML=`Couldn't load: ${e.message||e}.${extra}
+      <button class="btn" onclick="loadTab()">Retry</button>`;
+  }
+}
+
+/* ---------- wiring ---------- */
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected",x===t));
+  CURRENT=t.dataset.tab; windowDays=365;
+  document.querySelectorAll(".win-btn").forEach(b=>b.setAttribute("aria-pressed",b.dataset.w==="365"));
+  loadTab();
+}));
+document.querySelectorAll(".win-btn").forEach(b=>b.addEventListener("click",()=>{
+  windowDays=+b.dataset.w;
+  document.querySelectorAll(".win-btn").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render();
+}));
+$("amt").addEventListener("input",()=>{ $("convOut").innerHTML=TABS[CURRENT].conv.run(analyse(CACHE[CURRENT],windowDays)); });
+$("tgt").addEventListener("input",updateAlert);
+document.querySelectorAll("#goldCcy button").forEach(b=>b.addEventListener("click",()=>{
+  GOLD_CCY=b.dataset.c;
+  document.querySelectorAll("#goldCcy button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  if(GOLD_RAW){ CACHE.gold=convertGold(GOLD_CCY); applyCopy(false); $("tgt").value=""; render(); }
+}));
+$("keyGo").addEventListener("click",()=>{
+  const k=$("apikey").value.trim(); if(!k){$("apikey").focus();return;}
+  STOCK_KEY=k; CACHE.stock=null; loadTab();
+});
+
+loadTab();
+</script>
+</body>
+</html>
